@@ -2,11 +2,11 @@ import uuid
 from qdrant_client.models import VectorParams, Distance, PointStruct
 from app.qdrant_client import client
 from app.embeddings import get_embedding
-from app.config import COLLECTION_NAME
-from openai import OpenAI
-from app.config import OPENAI_API_KEY
+from app.config import COLLECTION_NAME,OPENAI_API_KEY
+from openai import AsyncOpenAI
+from app.cache import get_cache, set_cache
 
-openai_client = OpenAI(api_key=OPENAI_API_KEY)
+openai_client = AsyncOpenAI(api_key=OPENAI_API_KEY)
 
 def create_collection():
     if not client.collection_exists(COLLECTION_NAME):
@@ -19,8 +19,8 @@ def create_collection():
         )
         
 
-def add_document(text:str):
-    vector= get_embedding(text)
+async def add_document(text:str):
+    vector= await get_embedding(text)
 
     client.upsert(
         collection_name=COLLECTION_NAME,
@@ -33,8 +33,8 @@ def add_document(text:str):
         ],
     )
 
-def search(query: str):
-    query_vector = get_embedding(query)
+async def search(query: str):
+    query_vector = await get_embedding(query)
 
     results = client.query_points(
         collection_name=COLLECTION_NAME,
@@ -44,8 +44,12 @@ def search(query: str):
 
     return [point.payload["text"] for point in results.points]
 
-def generate_answer(query:str):
-    context=search(query)
+async def generate_answer(query:str):
+    # check cache first
+    cached = get_cache(query)
+    if cached:
+        return cached
+    context=await search(query)
 
     prompt= f"""
     Answer the question based on context.
@@ -57,9 +61,14 @@ def generate_answer(query:str):
 
     """
 
-    response = openai_client.responses.create(
+    response = await openai_client.responses.create(
         model="gpt-4.1-mini",
         input=prompt
     )
 
-    return  response.output_text
+    answer=  response.output_text
+
+    # Store in cache
+    set_cache(query, answer)
+    
+    return answer
