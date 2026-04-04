@@ -1,22 +1,30 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from app.rag_service import create_collection,add_document,generate_answer
 
-app = FastAPI()
-
-@app.on_event("startup")
-def start_up():
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup logic
     create_collection()
+    print("✅ Qdrant collection ready!!")
+
+    yield
+    # shutdown logic
+    print("🛑 Shutting down Qdrant collection...")
+
+app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/")
-def root():
+async def root():
     return {"message":"RAG API running !!"}
 
 @app.post("/add")
-def add(text:str):
-    add_document(text)
+async def add(text:str):
+    await add_document(text)
     return {"status":"added"}
 
 @app.get("/ask")
-def ask(query:str):
-    answer=generate_answer(query)
+async def ask(query:str):
+    answer = await generate_answer(query)
     return {"answer":answer}
