@@ -24,6 +24,6 @@ jobs:
     - name: Build and Push Docker Image
       uses: docker/build-push-action@v5
       with:
-        context: .
+        context: . 
         push: true
         tags: dhiraj918106/fastapi-qdrant-rag:latest
