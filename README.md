@@ -7,6 +7,8 @@ A minimal **Retrieval-Augmented Generation (RAG)** backend built with:
 * 📦 Qdrant (vector database)
 * 🤖 OpenAI Responses API (LLM answers)
 * ⚡ Redis (caching layer)
+* 🐳 Docker + Docker Compose
+* 🔁 GitHub Actions CI/CD
 
 This project demonstrates how to build a **simple, scalable, and production-ready semantic search + AI system**.
 
@@ -48,7 +50,15 @@ This project demonstrates how to build a **simple, scalable, and production-read
 
 ---
 
-### 5. 📦 Vector Database (Qdrant)
+### 5. 🚦 Rate Limiting (API Protection)
+
+* Implemented using `slowapi`
+* Prevents abuse and excessive requests
+* Per-endpoint request limits
+
+---
+
+### 6. 📦 Vector Database (Qdrant)
 
 * Lightweight and fast vector store
 * Runs via Docker
@@ -56,18 +66,36 @@ This project demonstrates how to build a **simple, scalable, and production-read
 
 ---
 
-### 6. ✨ OpenAI Integration
+### 7. ✨ OpenAI Integration
 
 * **Embeddings API** → text → vectors
 * **Responses API** → generate answers
 
 ---
 
-### 7. 🔁 Retry + Resilience
+### 8. 🔁 Retry + Resilience
 
 * Retry logic for OpenAI calls
 * Handles transient network failures
 * Production-friendly design
+
+---
+
+### 9. 🐳 Dockerized Setup
+
+* Containerized FastAPI app
+* Docker Compose for:
+
+  * Qdrant
+  * Redis
+
+---
+
+### 10. 🔁 CI/CD Pipeline (GitHub Actions)
+
+* Automatic Docker image build
+* Push to DockerHub
+* Triggered on every push to `main`
 
 ---
 
@@ -77,14 +105,16 @@ This project demonstrates how to build a **simple, scalable, and production-read
 fastapi-qdrant-rag-starter/
 │
 ├── app/
-│   ├── main.py              # FastAPI entrypoint (async + lifespan)
+│   ├── main.py              # FastAPI entrypoint (async + lifespan + rate limit)
 │   ├── rag_service.py       # RAG pipeline
 │   ├── embeddings.py        # OpenAI embeddings (async + retry)
 │   ├── qdrant_client.py     # Qdrant connection
 │   ├── cache.py             # Redis caching layer
 │   └── config.py            # Config management
 │
-├── docker-compose.yml       # Qdrant + Redis setup
+├── docker-compose.yml       # Qdrant + Redis
+├── Dockerfile              # App container
+├── .github/workflows/      # CI/CD pipeline
 ├── requirements.txt
 ├── .env
 └── README.md
@@ -155,7 +185,8 @@ POST /add?text=FastAPI is a modern web framework
 
 ✔ Converts → embedding
 ✔ Stores in Qdrant
-✔ Optionally cached in Redis
+✔ Cached in Redis (optional)
+✔ Rate limited
 
 ---
 
@@ -167,11 +198,12 @@ GET /ask?query=What is FastAPI?
 
 ### Flow:
 
-1. Query → embedding (cached if available)
-2. Retrieve relevant docs (Qdrant)
-3. Combine context + query
-4. LLM generates answer
-5. Response cached (optional)
+1. Check Redis cache
+2. Query → embedding
+3. Retrieve relevant docs (Qdrant)
+4. Combine context + query
+5. LLM generates answer
+6. Cache response
 
 ---
 
@@ -179,6 +211,8 @@ GET /ask?query=What is FastAPI?
 
 ```
 User Query
+   ↓
+Rate Limiter
    ↓
 Redis Cache (check)
    ↓
@@ -213,6 +247,8 @@ This is a **production-ready starter template**:
 
 * Async-first architecture
 * Caching for performance
+* API protection (rate limiting)
+* CI/CD automation
 * Clean service separation
 * Easy to scale into microservices
 
