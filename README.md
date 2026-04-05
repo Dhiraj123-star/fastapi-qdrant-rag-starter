@@ -2,12 +2,13 @@
 
 A minimal **Retrieval-Augmented Generation (RAG)** backend built with:
 
-* ⚡ FastAPI (API layer)
+* ⚡ FastAPI (Async API layer)
 * 🧠 OpenAI Embeddings (semantic understanding)
 * 📦 Qdrant (vector database)
 * 🤖 OpenAI Responses API (LLM answers)
+* ⚡ Redis (caching layer)
 
-This project demonstrates how to build a **simple yet powerful semantic search + AI response system**.
+This project demonstrates how to build a **simple, scalable, and production-ready semantic search + AI system**.
 
 ---
 
@@ -17,7 +18,7 @@ This project demonstrates how to build a **simple yet powerful semantic search +
 
 * Converts text into embeddings using OpenAI
 * Stores vectors in Qdrant
-* Retrieves the most relevant documents based on similarity
+* Retrieves most relevant documents using similarity search
 
 ---
 
@@ -25,32 +26,48 @@ This project demonstrates how to build a **simple yet powerful semantic search +
 
 * Combines:
 
-  * Retrieved context (from Qdrant)
+  * Retrieved context (Qdrant)
   * User query
-* Sends both to the LLM for **context-aware answers**
+* Sends both to LLM → generates **context-aware answers**
 
 ---
 
-### 3. 📦 Vector Database Integration (Qdrant)
+### 3. ⚡ Fully Async FastAPI
 
-* Lightweight, fast vector storage
-* Runs locally via Docker
+* End-to-end async architecture
+* Non-blocking API calls (OpenAI, DB)
+* High performance & scalable
+
+---
+
+### 4. ⚡ Redis Caching (Performance Boost)
+
+* Caches embeddings / responses
+* Reduces redundant API calls
+* Improves latency significantly
+
+---
+
+### 5. 📦 Vector Database (Qdrant)
+
+* Lightweight and fast vector store
+* Runs via Docker
 * Supports cosine similarity search
 
 ---
 
-### 4. ✨ OpenAI Integration
+### 6. ✨ OpenAI Integration
 
-* **Embeddings API** → convert text → vectors
-* **Responses API** → generate answers from context
+* **Embeddings API** → text → vectors
+* **Responses API** → generate answers
 
 ---
 
-### 5. ⚡ FastAPI Microservice
+### 7. 🔁 Retry + Resilience
 
-* Simple REST endpoints
-* Clean architecture (service layer separation)
-* Easy to extend into production systems
+* Retry logic for OpenAI calls
+* Handles transient network failures
+* Production-friendly design
 
 ---
 
@@ -60,13 +77,14 @@ This project demonstrates how to build a **simple yet powerful semantic search +
 fastapi-qdrant-rag-starter/
 │
 ├── app/
-│   ├── main.py              # FastAPI entrypoint
-│   ├── rag_service.py       # Core RAG logic
-│   ├── embeddings.py        # OpenAI embeddings
+│   ├── main.py              # FastAPI entrypoint (async + lifespan)
+│   ├── rag_service.py       # RAG pipeline
+│   ├── embeddings.py        # OpenAI embeddings (async + retry)
 │   ├── qdrant_client.py     # Qdrant connection
-│   └── config.py            # Environment config
+│   ├── cache.py             # Redis caching layer
+│   └── config.py            # Config management
 │
-├── docker-compose.yml       # Qdrant setup
+├── docker-compose.yml       # Qdrant + Redis setup
 ├── requirements.txt
 ├── .env
 └── README.md
@@ -76,23 +94,24 @@ fastapi-qdrant-rag-starter/
 
 ## ⚙️ Setup Instructions
 
-### 1️⃣ Start Qdrant (Vector DB)
+### 1️⃣ Start Services (Qdrant + Redis)
 
-```
+```bash
 docker-compose up -d
 ```
 
-Qdrant will run on:
+Services:
 
 ```
-http://localhost:6333
+Qdrant → http://localhost:6333
+Redis  → localhost:6379
 ```
 
 ---
 
 ### 2️⃣ Install Dependencies
 
-```
+```bash
 pip install -r requirements.txt
 ```
 
@@ -100,23 +119,25 @@ pip install -r requirements.txt
 
 ### 3️⃣ Configure Environment
 
-Create a `.env` file:
+Create `.env`:
 
 ```
 OPENAI_API_KEY=your_openai_api_key
 QDRANT_URL=http://localhost:6333
 COLLECTION_NAME=documents
+REDIS_HOST=localhost
+REDIS_PORT=6379
 ```
 
 ---
 
 ### 4️⃣ Run FastAPI
 
-```
+```bash
 uvicorn app.main:app --reload
 ```
 
-API will be available at:
+API:
 
 ```
 http://127.0.0.1:8000
@@ -132,7 +153,9 @@ http://127.0.0.1:8000
 POST /add?text=FastAPI is a modern web framework
 ```
 
-👉 Stores text as embedding in Qdrant
+✔ Converts → embedding
+✔ Stores in Qdrant
+✔ Optionally cached in Redis
 
 ---
 
@@ -142,19 +165,22 @@ POST /add?text=FastAPI is a modern web framework
 GET /ask?query=What is FastAPI?
 ```
 
-👉 Flow:
+### Flow:
 
-1. Convert query → embedding
-2. Retrieve relevant documents
-3. Send context + query → LLM
-4. Return AI-generated answer
+1. Query → embedding (cached if available)
+2. Retrieve relevant docs (Qdrant)
+3. Combine context + query
+4. LLM generates answer
+5. Response cached (optional)
 
 ---
 
-## 🔄 How It Works
+## 🔄 Architecture Flow
 
 ```
 User Query
+   ↓
+Redis Cache (check)
    ↓
 Embedding (OpenAI)
    ↓
@@ -164,6 +190,8 @@ Relevant Context
    ↓
 LLM (Responses API)
    ↓
+Cache Result (Redis)
+   ↓
 Final Answer
 ```
 
@@ -172,32 +200,21 @@ Final Answer
 ## 🚀 Use Cases
 
 * AI-powered search engines
+* Chat with your data
 * Knowledge base assistants
 * Internal documentation bots
-* Chat with your data
-* FAQ automation systems
+* FAQ automation
 
 ---
 
 ## ⚡ Why This Project?
 
-This is a **starter template** designed to:
+This is a **production-ready starter template**:
 
-* Teach core RAG concepts
-* Provide clean architecture
-* Be easily extendable into production
-
----
-
-## 🔮 Next Improvements
-
-* Async FastAPI support
-* Streaming responses
-* Metadata filtering
-* Batch ingestion
-* Authentication (JWT)
-* Redis caching
-* Full Dockerization
+* Async-first architecture
+* Caching for performance
+* Clean service separation
+* Easy to scale into microservices
 
 ---
 
